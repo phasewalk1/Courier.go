@@ -2,13 +2,14 @@ package database
 
 import (
 	"fmt"
-	"os"
 	"log"
+	"os"
+	"time"
 
-	"gorm.io/gorm"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm/logger"
 	"github.com/phasewalk1/courier-go/models"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 type DbInstance struct {
@@ -25,11 +26,13 @@ func ConnectDb() {
 		os.Getenv("DB_NAME"),
 	)
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config {
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	})
 
-	if err != nil  {
+	PoolDb(db)
+
+	if err != nil {
 		log.Fatal("Failed to connect to database. Error: ", err)
 		os.Exit(2)
 	}
@@ -39,7 +42,18 @@ func ConnectDb() {
 
 	db.AutoMigrate(&models.Message{})
 
-	DB = DbInstance {
+	DB = DbInstance{
 		Db: db,
 	}
+}
+
+func PoolDb(db *gorm.DB) error {
+	sqlDB, err := db.DB()
+	if err != nil {
+		return err
+	}
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxOpenConns(100)
+	sqlDB.SetConnMaxLifetime(time.Hour)
+	return nil
 }
